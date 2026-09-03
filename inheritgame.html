@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IDENTITRIS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0221;
+    --bg2: #150a30;
+    --grid: #241454;
+    --cyan: #00f0f0;
+    --pink: #ff2e88;
+    --green: #22e07a;
+    --red: #ff3b3b;
+    --yellow: #f7d51d;
+    --white: #f4f4f9;
+    --ink: #f4f4f9;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Press Start 2P', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  body {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 24px 12px 60px 12px;
+    background:
+      radial-gradient(circle at 20% 10%, #2a1660 0%, transparent 40%),
+      radial-gradient(circle at 80% 90%, #1a0a3d 0%, transparent 45%),
+      var(--bg);
+  }
+  .arcade {
+    width: 100%;
+    max-width: 480px;
+  }
+  header {
+    text-align: center;
+    margin-bottom: 14px;
+  }
+  h1 {
+    font-size: 1.5rem;
+    margin: 0 0 6px 0;
+    color: var(--cyan);
+    text-shadow: 3px 3px 0 var(--pink);
+    letter-spacing: 1px;
+  }
+  .subtitle {
+    font-size: 0.55rem;
+    color: #b9a8ff;
+    line-height: 1.6;
+  }
+
+  .hud {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.6rem;
+    margin: 16px 0 8px 0;
+    padding: 8px 10px;
+    background: var(--bg2);
+    border: 2px solid var(--grid);
+    border-radius: 4px;
+  }
+  .hud .stat { text-align: center; flex: 1; }
+  .hud .stat .label { color: #8a7fc4; margin-bottom: 4px; font-size: 0.5rem; }
+  .hud .stat .value { color: var(--yellow); }
+  .misses { display: flex; gap: 4px; justify-content: center; margin-top: 4px; }
+  .miss-block {
+    width: 10px; height: 10px;
+    background: var(--grid);
+    border: 1px solid #4a3d8f;
+  }
+  .miss-block.lost { background: var(--red); border-color: #ff8080; }
+
+  .board {
+    position: relative;
+    display: flex;
+    height: 320px;
+    background: var(--bg2);
+    border: 3px solid var(--grid);
+    border-radius: 4px;
+    overflow: hidden;
+    box-shadow: inset 0 0 40px rgba(0,0,0,0.6);
+  }
+  .board::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+    background-size: 20px 20px;
+    pointer-events: none;
+  }
+  .lane {
+    flex: 1;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: center;
+    border-right: 2px dashed #3a2d78;
+    transition: background 0.15s ease;
+  }
+  .lane:last-child { border-right: none; }
+  .lane-label {
+    position: absolute;
+    top: 8px;
+    left: 0;
+    right: 0;
+    text-align: center;
+    font-size: 0.55rem;
+    letter-spacing: 1px;
+  }
+  .lane[data-lane="0"] .lane-label { color: var(--cyan); }
+  .lane[data-lane="1"] .lane-label { color: var(--pink); }
+  .floor {
+    width: 100%;
+    height: 10px;
+    background: repeating-linear-gradient(45deg, #3a2d78, #3a2d78 4px, #2a1e5e 4px, #2a1e5e 8px);
+    border-top: 2px solid #5a4bb8;
+  }
+  .lane.target-flash-fluid { background: rgba(0,240,240,0.12); }
+  .lane.target-flash-fixed { background: rgba(255,46,136,0.12); }
+
+  .piece {
+    position: absolute;
+    top: 40px;
+    width: 44%;
+    left: 3%;
+    padding: 10px 8px;
+    background: var(--cyan);
+    color: #05201f;
+    border: 3px solid #7ffafa;
+    border-radius: 3px;
+    box-shadow:
+      inset -4px -4px 0 rgba(0,0,0,0.25),
+      inset 4px 4px 0 rgba(255,255,255,0.35),
+      0 0 16px rgba(0,240,240,0.5);
+    text-align: center;
+    font-size: 0.55rem;
+    line-height: 1.5;
+    transition: left 0.12s ease, background 0.15s ease, border-color 0.15s ease;
+  }
+  .piece.lane-1 { left: 53%; }
+  .piece .year { font-size: 0.45rem; color: #05201f; opacity: 0.8; margin-bottom: 6px; }
+  .piece.locked-correct {
+    background: var(--green);
+    border-color: #a9ffce;
+    box-shadow: 0 0 20px rgba(34,224,122,0.7);
+  }
+  .piece.locked-wrong {
+    background: var(--red);
+    border-color: #ffb0b0;
+    box-shadow: 0 0 20px rgba(255,59,59,0.7);
+  }
+
+  .line-clear-flash {
+    position: absolute;
+    inset: 0;
+    background: white;
+    opacity: 0;
+    pointer-events: none;
+  }
+  .line-clear-flash.flash {
+    animation: flashAnim 0.3s ease-out;
+  }
+  @keyframes flashAnim {
+    0% { opacity: 0.85; }
+    100% { opacity: 0; }
+  }
+
+  .controls {
+    display: flex;
+    gap: 8px;
+    margin-top: 14px;
+  }
+  .controls button {
+    flex: 1;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 0.55rem;
+    padding: 14px 4px;
+    border: 2px solid var(--grid);
+    border-radius: 4px;
+    cursor: pointer;
+    background: var(--bg2);
+    color: var(--ink);
+    transition: transform 0.08s ease;
+  }
+  .controls button:active { transform: scale(0.94); }
+  #btn-left { border-color: var(--cyan); color: var(--cyan); }
+  #btn-right { border-color: var(--pink); color: var(--pink); }
+  #btn-drop { border-color: var(--yellow); color: var(--yellow); flex: 0.7; }
+  .hint {
+    text-align: center;
+    font-size: 0.45rem;
+    color: #7a6db0;
+    margin-top: 10px;
+    line-height: 1.8;
+  }
+
+  .feedback-panel {
+    margin-top: 14px;
+    background: var(--bg2);
+    border: 2px solid var(--grid);
+    border-radius: 4px;
+    padding: 14px;
+    display: none;
+  }
+  .feedback-panel.show { display: block; }
+  .feedback-panel .result-tag {
+    font-size: 0.6rem;
+    margin-bottom: 10px;
+  }
+  .feedback-panel .result-tag.correct { color: var(--green); }
+  .feedback-panel .result-tag.wrong { color: var(--red); }
+  .feedback-panel .full-text {
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    font-size: 0.85rem;
+    line-height: 1.5;
+    margin-bottom: 10px;
+    color: #dcd6ff;
+  }
+  .feedback-panel .explain {
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    font-size: 0.8rem;
+    line-height: 1.5;
+    color: #9c8fd6;
+    margin-bottom: 12px;
+  }
+  .feedback-panel .explain .source { font-style: italic; color: var(--yellow); }
+  .next-piece-btn {
+    width: 100%;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 0.55rem;
+    padding: 12px;
+    background: var(--pink);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+
+  .end-screen {
+    text-align: center;
+    padding: 30px 14px;
+  }
+  .end-screen h2 {
+    font-size: 1.1rem;
+    color: var(--yellow);
+    text-shadow: 2px 2px 0 var(--pink);
+    margin-bottom: 18px;
+  }
+  .end-score {
+    font-size: 2.2rem;
+    color: var(--cyan);
+    margin: 14px 0;
+    text-shadow: 3px 3px 0 var(--pink);
+  }
+  .end-takeaway {
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    font-size: 0.9rem;
+    line-height: 1.6;
+    color: #cfc6ff;
+    margin: 16px 0 24px 0;
+  }
+  .restart-btn {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 0.6rem;
+    padding: 14px 24px;
+    background: var(--green);
+    color: #05201f;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+
+  footer {
+    text-align: center;
+    margin-top: 26px;
+    font-size: 0.45rem;
+    color: #5a4d90;
+    line-height: 1.8;
+  }
+</style>
+</head>
+<body>
+
+<div class="arcade">
+  <header>
+    <h1>IDENTITRIS</h1>
+    <div class="subtitle">Steer each falling event into the right column<br>before it hits the floor.</div>
+  </header>
+
+  <div class="hud">
+    <div class="stat">
+      <div class="label">SCORE</div>
+      <div class="value" id="hud-score">0</div>
+    </div>
+    <div class="stat">
+      <div class="label">LEVEL</div>
+      <div class="value" id="hud-level">1</div>
+    </div>
+    <div class="stat">
+      <div class="label">MISSES</div>
+      <div class="misses" id="hud-misses"></div>
+    </div>
+  </div>
+
+  <div id="board-wrap">
+    <div class="board" id="board">
+      <div class="lane" data-lane="0">
+        <div class="lane-label">FLUID</div>
+        <div class="floor"></div>
+      </div>
+      <div class="lane" data-lane="1">
+        <div class="lane-label">FIXED</div>
+        <div class="floor"></div>
+      </div>
+      <div class="piece" id="piece"></div>
+      <div class="line-clear-flash" id="flash"></div>
+    </div>
+
+    <div class="controls">
+      <button id="btn-left">\u25c0 FLUID</button>
+      <button id="btn-drop">\u25bc DROP</button>
+      <button id="btn-right">FIXED \u25b6</button>
+    </div>
+    <div class="hint">\u2190 / \u2192 or A / D to steer &nbsp;\u00b7&nbsp; SPACE or \u2193 to drop</div>
+  </div>
+
+  <div class="feedback-panel" id="feedback-panel">
+    <div class="result-tag" id="result-tag"></div>
+    <div class="full-text" id="full-text"></div>
+    <div class="explain" id="explain"></div>
+    <button class="next-piece-btn" id="next-btn">NEXT PIECE \u25bc</button>
+  </div>
+
+  <footer>
+    Based on Conzen et al., "The Invention of Ethnicity" (1992)<br>
+    &amp; Smedley, "'Race' and the Construction of Human Identity" (1998)
+  </footer>
+</div>
+
+<script>
+const cards = [
+  {
+    year: "5th c. BCE",
+    short: "Herodotus on skin color \u2014 \u201camounts to but little\u201d",
+    text: "Herodotus writes about the Colchians' dark skin and \u201cwooly hair,\u201d explicitly noting it \u201camounts to but little, since several other nations are so too.\u201d",
+    answer: "fluid",
+    explanation: "Ancient writers rarely gave physical difference any hierarchical meaning at all \u2014 skin color was noted, not ranked. This is the world before \u201crace.\u201d",
+    source: "Smedley"
+  },
+  {
+    year: "334\u2013323 BCE",
+    short: "Alexander orders his soldiers to intermarry",
+    text: "Alexander the Great orders his soldiers to intermarry with the peoples they conquer, in order to learn their languages and cultures.",
+    answer: "fluid",
+    explanation: "Conquest didn't erase identity \u2014 it was expected to produce cultural exchange and new hybrid identities. Ethnicity was acquired, not fixed by blood.",
+    source: "Smedley"
+  },
+  {
+    year: "1st c. CE",
+    short: "Paul of Tarsus calls himself \u201ca Roman\u201d",
+    text: "Paul of Tarsus, while traveling and preaching across the Mediterranean, identifies himself as \u201ca Roman\u201d whenever it was useful to do so.",
+    answer: "fluid",
+    explanation: "Identity in the ancient world was situational. Individuals could claim different affiliations depending on context, without shame or contradiction.",
+    source: "Smedley"
+  },
+  {
+    year: "1676",
+    short: "Bacon's Rebellion is crushed",
+    text: "Bacon's Rebellion \u2014 a failed uprising of poor white servants and enslaved/indentured Africans acting together against colonial elites \u2014 is crushed in Virginia.",
+    answer: "fixed",
+    explanation: "Theodore Allen argues this is the pivot point: colonial leaders responded by deliberately inventing legal \u201cwhiteness\u201d to split poor whites from Black servants and prevent future collaboration.",
+    source: "Smedley"
+  },
+  {
+    year: "Late 1600s\u201370s",
+    short: "Colonies split servants by ancestry in law",
+    text: "Virginia and other colonies pass laws granting privileges to poor white freedmen while permanently restricting the rights of \u201cAfricans,\u201d \u201cmulattoes,\u201d and \u201cIndians.\u201d",
+    answer: "fixed",
+    explanation: "Legal status was now tied to ancestry and permanent categorization \u2014 not to religion, behavior, or achievement, which could change.",
+    source: "Smedley"
+  },
+  {
+    year: "1819",
+    short: "\u201cShed his European skin\u201d \u2014 J.Q. Adams",
+    text: "John Quincy Adams tells a German correspondent that immigrants would have to \u201cshed his European skin\u201d if he came to America \u2014 confident this transformation was natural and inevitable.",
+    answer: "fluid",
+    explanation: "This still reflects the older assumption that identity could be shed and remade \u2014 assimilation as transformation, not permanent exclusion.",
+    source: "Conzen et al."
+  },
+  {
+    year: "1830s",
+    short: "Irish &amp; Germans start being seen as \u201cethnic\u201d",
+    text: "Americans begin perceiving Irish and German immigrants as distinct threatening \u201cethnic\u201d groups \u2014 while English immigrants, despite real cultural differences, are barely noticed as \u201cethnic\u201d at all.",
+    answer: "fluid",
+    explanation: "Ethnic perception here is socially selective and constructed in real time, based on political anxiety \u2014 not a fixed biological fact.",
+    source: "Conzen et al."
+  },
+  {
+    year: "1840s\u201350s",
+    short: "Buffalo immigrants invent saint's-day banquets",
+    text: "In Buffalo, NY, Scots, English, and Irish immigrants invent new public traditions \u2014 St. Andrew's Day and St. Patrick's Day banquets \u2014 to express and negotiate group identity.",
+    answer: "fluid",
+    explanation: "These are brand-new \u201cinvented traditions,\u201d created in response to local conditions \u2014 proof that ethnic identity is actively built, not simply inherited from the old country.",
+    source: "Conzen et al."
+  },
+  {
+    year: "1887",
+    short: "Dawes Act demands \u201cblood quantum\u201d proof",
+    text: "The Dawes Act requires Native Americans to prove \u201cone-half or more\u201d Indian ancestry by blood in order to receive land allotments.",
+    answer: "fixed",
+    explanation: "This replaces tribal self-definition (based on birth, descent, and adoption) with a rigid, quantifiable, government-imposed biological standard.",
+    source: "Smedley"
+  },
+  {
+    year: "1880s\u20131930s",
+    short: "East Europeans build national identity in America",
+    text: "East European peasants who identified only with their local village (okolica) develop a shared national identity \u2014 Polish, Slovak, Lithuanian \u2014 only after arriving in America.",
+    answer: "fluid",
+    explanation: "National/ethnic identity was built through the immigrant experience itself \u2014 newspapers, associations, and shared struggle \u2014 not simply carried over intact from birth.",
+    source: "Conzen et al."
+  },
+  {
+    year: "20th c.",
+    short: "BIA sets a \u201cone-fourth blood\u201d rule",
+    text: "The Bureau of Indian Affairs adopts a \u201cone-fourth Indian blood\u201d standard to determine who is legally Native American and eligible for benefits.",
+    answer: "fixed",
+    explanation: "Another example of race-style, hereditary bookkeeping imposed on a group whose own traditions never defined belonging this way.",
+    source: "Smedley"
+  },
+  {
+    year: "1960s\u201370s",
+    short: "Italian Americans revive ethnic identity",
+    text: "Third- and fourth-generation Italian Americans unexpectedly assert a renewed, distinct ethnic identity during the national \u201cethnic revival.\u201d",
+    answer: "fluid",
+    explanation: "Even generations after immigration, ethnic identity could be revived, reshaped, and renegotiated \u2014 it never reached a fixed, final form.",
+    source: "Conzen et al."
+  },
+  {
+    year: "20th c.",
+    short: "Census has no \u201cmixed-race\u201d box",
+    text: "Many mixed-race Americans report feeling they have \u201cno identity\u201d because U.S. census forms offer no biological \u201cmixed-race\u201d category.",
+    answer: "fixed",
+    explanation: "Smedley argues this distress comes from accepting the false premise that identity IS biology \u2014 a premise race ideology invented, not a natural fact.",
+    source: "Smedley"
+  },
+  {
+    year: "20th c.",
+    short: "Tiger Woods would have to learn Thai culture",
+    text: "Smedley notes that for Tiger Woods to genuinely have Thai culture, he would have to learn the Thai language and customs \u2014 having a Thai parent doesn't transmit culture automatically.",
+    answer: "fluid",
+    explanation: "Culture is learned behavior, not something carried in genes \u2014 directly refuting the racial-worldview assumption that biology determines culture.",
+    source: "Smedley"
+  }
+];
+
+// ---------- Game state ----------
+let deck = [];
+let deckIndex = 0;
+let score = 0;
+let level = 1;
+let misses = 0;
+const MAX_MISSES = 3;
+
+let lane = 0; // 0 = fluid/left, 1 = fixed/right
+let pieceY = 40;
+let baseSpeed = 55; // px per second
+let softDropMultiplier = 1;
+let locked = false;
+let rafId = null;
+let lastTime = null;
+
+const pieceEl = document.getElementById('piece');
+const flashEl = document.getElementById('flash');
+const laneEls = document.querySelectorAll('.lane');
+const feedbackPanel = document.getElementById('feedback-panel');
+const resultTag = document.getElementById('result-tag');
+const fullTextEl = document.getElementById('full-text');
+const explainEl = document.getElementById('explain');
+const nextBtn = document.getElementById('next-btn');
+
+const hudScore = document.getElementById('hud-score');
+const hudLevel = document.getElementById('hud-level');
+const hudMisses = document.getElementById('hud-misses');
+
+const FLOOR_Y = 250; // px, where piece locks
+
+// ---------- Audio (tiny beeps, no assets) ----------
+let audioCtx = null;
+function ensureAudio() {
+  if (!audioCtx) {
+    try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+    catch (e) { audioCtx = null; }
+  }
+}
+function beep(freq, duration, type) {
+  if (!audioCtx) return;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = type || 'square';
+  osc.frequency.value = freq;
+  gain.gain.setValueAtTime(0.06, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start();
+  osc.stop(audioCtx.currentTime + duration);
+}
+function sfxMove() { beep(220, 0.05, 'square'); }
+function sfxCorrect() { beep(660, 0.09, 'square'); setTimeout(()=>beep(880,0.12,'square'), 90); }
+function sfxWrong() { beep(120, 0.22, 'sawtooth'); }
+function sfxGameOver() { beep(200,0.15,'sawtooth'); setTimeout(()=>beep(140,0.25,'sawtooth'),150); }
+function sfxLevelUp() { beep(523,0.08,'square'); setTimeout(()=>beep(659,0.08,'square'),80); setTimeout(()=>beep(784,0.15,'square'),160); }
+
+// ---------- Helpers ----------
+function shuffle(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function updateHud() {
+  hudScore.textContent = score;
+  hudLevel.textContent = level;
+  hudMisses.innerHTML = '';
+  for (let i = 0; i < MAX_MISSES; i++) {
+    const d = document.createElement('div');
+    d.className = 'miss-block' + (i < misses ? ' lost' : '');
+    hudMisses.appendChild(d);
+  }
+}
+
+function currentCard() {
+  return deck[deckIndex];
+}
+
+function spawnPiece() {
+  locked = false;
+  lane = 0;
+  pieceY = 40;
+  softDropMultiplier = 1;
+  feedbackPanel.classList.remove('show');
+  const card = currentCard();
+  pieceEl.classList.remove('locked-correct', 'locked-wrong');
+  pieceEl.classList.remove('lane-1');
+  pieceEl.innerHTML = `<div class="year">${card.year}</div>${card.short}`;
+  pieceEl.style.top = pieceY + 'px';
+  lastTime = null;
+  if (rafId) cancelAnimationFrame(rafId);
+  rafId = requestAnimationFrame(tick);
+}
+
+function setLane(newLane) {
+  if (locked) return;
+  if (lane === newLane) return;
+  lane = newLane;
+  pieceEl.classList.toggle('lane-1', lane === 1);
+  sfxMove();
+  laneEls.forEach(el => {
+    el.classList.remove('target-flash-fluid', 'target-flash-fixed');
+  });
+  laneEls[lane].classList.add(lane === 0 ? 'target-flash-fluid' : 'target-flash-fixed');
+  setTimeout(() => laneEls[lane].classList.remove('target-flash-fluid','target-flash-fixed'), 150);
+}
+
+function tick(t) {
+  if (locked) return;
+  if (lastTime === null) lastTime = t;
+  const dt = (t - lastTime) / 1000;
+  lastTime = t;
+
+  const speed = baseSpeed * (1 + (level - 1) * 0.18) * softDropMultiplier;
+  pieceY += speed * dt;
+
+  if (pieceY >= FLOOR_Y) {
+    pieceY = FLOOR_Y;
+    pieceEl.style.top = pieceY + 'px';
+    lockPiece();
+    return;
+  }
+  pieceEl.style.top = pieceY + 'px';
+  rafId = requestAnimationFrame(tick);
+}
+
+function lockPiece() {
+  locked = true;
+  const card = currentCard();
+  const picked = lane === 0 ? 'fluid' : 'fixed';
+  const correct = picked === card.answer;
+
+  if (correct) {
+    score += 10 * level;
+    pieceEl.classList.add('locked-correct');
+    flashLineClear();
+    sfxCorrect();
+    if (score > 0 && score % (30 * level) < 10 * level && level < 5) {
+      level++;
+      updateHud();
+      sfxLevelUp();
+    }
+  } else {
+    misses++;
+    pieceEl.classList.add('locked-wrong');
+    sfxWrong();
+  }
+  updateHud();
+
+  resultTag.textContent = correct ? '\u25a0 LINE CLEAR \u2014 CORRECT' : '\u25a0 TOP OUT RISK \u2014 WRONG LANE';
+  resultTag.className = 'result-tag ' + (correct ? 'correct' : 'wrong');
+  fullTextEl.textContent = card.text;
+  explainEl.innerHTML = card.explanation + ' <span class="source">\u2014 ' + card.source + '</span>';
+  feedbackPanel.classList.add('show');
+
+  if (misses >= MAX_MISSES) {
+    setTimeout(showGameOver, 450);
+    return;
+  }
+}
+
+function flashLineClear() {
+  flashEl.classList.remove('flash');
+  void flashEl.offsetWidth; // reflow to restart animation
+  flashEl.classList.add('flash');
+}
+
+function nextPiece() {
+  deckIndex++;
+  if (deckIndex >= deck.length) {
+    showVictory();
+    return;
+  }
+  spawnPiece();
+}
+
+function showGameOver() {
+  sfxGameOver();
+  document.getElementById('board-wrap').style.display = 'none';
+  feedbackPanel.classList.remove('show');
+  const wrap = document.createElement('div');
+  wrap.className = 'end-screen';
+  wrap.id = 'end-screen';
+  wrap.innerHTML = `
+    <h2>TOP OUT</h2>
+    <div class="end-score">${score}</div>
+    <div class="end-takeaway">Three wrong lanes and the stack overflowed \u2014 just like the game.
+    Worth a re-read: ethnicity was historically fluid and acquired; race was an 18th-century
+    invention designed to be permanent and hereditary.</div>
+    <button class="restart-btn" id="restart-btn">PRESS START</button>
+  `;
+  document.querySelector('.arcade').insertBefore(wrap, document.querySelector('footer'));
+  document.getElementById('restart-btn').addEventListener('click', restartGame);
+}
+
+function showVictory() {
+  const wrap = document.createElement('div');
+  wrap.className = 'end-screen';
+  wrap.id = 'end-screen';
+  document.getElementById('board-wrap').style.display = 'none';
+  feedbackPanel.classList.remove('show');
+  let takeaway;
+  if (misses === 0) {
+    takeaway = "ALL CLEAR, NO MISSES. Ethnicity flexes. Race was built to not \u2014 you've got the core distinction down cold.";
+  } else if (misses === 1) {
+    takeaway = "Almost a perfect clear. Solid instincts on the difference between identity that was lived and adapted, versus identity that was legislated and fixed.";
+  } else {
+    takeaway = "You cleared the deck, but caught a couple in the wrong lane. Worth a re-read of the fluid-vs-fixed distinction in both articles.";
+  }
+  wrap.innerHTML = `
+    <h2>ALL CLEAR</h2>
+    <div class="end-score">${score}</div>
+    <div class="end-takeaway">${takeaway}</div>
+    <button class="restart-btn" id="restart-btn">PLAY AGAIN</button>
+  `;
+  document.querySelector('.arcade').insertBefore(wrap, document.querySelector('footer'));
+  document.getElementById('restart-btn').addEventListener('click', restartGame);
+}
+
+function restartGame() {
+  const end = document.getElementById('end-screen');
+  if (end) end.remove();
+  document.getElementById('board-wrap').style.display = '';
+  startGame();
+}
+
+function startGame() {
+  deck = shuffle(cards);
+  deckIndex = 0;
+  score = 0;
+  level = 1;
+  misses = 0;
+  updateHud();
+  spawnPiece();
+}
+
+// ---------- Input ----------
+document.addEventListener('keydown', (e) => {
+  ensureAudio();
+  if (locked) return;
+  if (e.key === 'ArrowLeft' || e.key.toLowerCase() === 'a') setLane(0);
+  else if (e.key === 'ArrowRight' || e.key.toLowerCase() === 'd') setLane(1);
+  else if (e.key === 'ArrowDown' || e.key.toLowerCase() === 's') softDropMultiplier = 4;
+  else if (e.key === ' ' || e.key === 'Spacebar') {
+    e.preventDefault();
+    pieceY = FLOOR_Y;
+  }
+});
+document.addEventListener('keyup', (e) => {
+  if (e.key === 'ArrowDown' || e.key.toLowerCase() === 's') softDropMultiplier = 1;
+});
+
+document.getElementById('btn-left').addEventListener('click', () => { ensureAudio(); setLane(0); });
+document.getElementById('btn-right').addEventListener('click', () => { ensureAudio(); setLane(1); });
+document.getElementById('btn-drop').addEventListener('click', () => { ensureAudio(); if (!locked) pieceY = FLOOR_Y; });
+nextBtn.addEventListener('click', nextPiece);
+
+startGame();
+</script>
+
+</body>
+</html>
